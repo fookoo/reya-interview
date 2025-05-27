@@ -27,6 +27,7 @@ export const AccountsProvider: React.FC<{
 }) => {
   const wsRef = useRef<WebSocket | null>(null);
   const positionsRef = useRef<string[]>([]);
+  const pricesRef = useRef<Record<string, number>>({});
 
   const [account, setAccount] = useState<IAccount | null>(null);
   const [prices, setPrices] = useState<Record<string, number>>({});
@@ -131,13 +132,11 @@ export const AccountsProvider: React.FC<{
         const data = JSON.parse(event.data);
 
         if (isPriceUpdate(data)) {
-          setPrices((prev) => {
-            return {
-              ...prev,
-              [data.contents.result.marketId]:
-                Number(data.contents.result.price) / 1e18,
-            };
-          });
+          pricesRef.current = {
+            ...pricesRef.current,
+            [data.contents.result.marketId]:
+              Number(data.contents.result.price) / 1e18,
+          };
         }
       } catch {
         console.error("Invalid JSON:", event.data);
@@ -163,6 +162,16 @@ export const AccountsProvider: React.FC<{
       ws.close();
     };
   }, [account, accounts, market]);
+
+  useEffect(() => {
+    const timerRef = setInterval(() => {
+      setPrices(pricesRef.current);
+    }, 1000);
+
+    return () => {
+      clearInterval(timerRef);
+    };
+  }, []);
 
   return (
     <AccountsContext.Provider value={value}>
